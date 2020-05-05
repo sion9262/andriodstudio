@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">201621196박시온</string>
-    <string name="greeting">Hello 박시온</string>
+    <string name="app_name">LocProviderList</string>
+    <string name="greeting">Location Providers Go Here</string>
     <string name="button">박시온 버튼</string>
 </resources>

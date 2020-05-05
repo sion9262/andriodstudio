@@ -1,54 +1,104 @@
 package com.example.myapplication;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
 
+import android.Manifest;
+import android.content.Context;
+import android.content.pm.PackageManager;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
 import android.os.Bundle;
 import android.util.Log;
 import android.widget.Button;
 import android.widget.TextView;
+import android.widget.Toast;
+
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
-    TextView textView;
-    Button button;
-    private static final String TAG = "MyActivity";
+
+    TextView txtAzimuth, txtPitch, txtRoll;
+
+    SensorManager sensorManager;
+    Sensor magSensor, accSensor;
+    SensorEventListener listener;
+
+    private float[] accelerometerValues, magneticValues;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        Log.e(TAG, "201621196박시온 onCreate() called!");
 
-        textView = (TextView) findViewById(R.id.textView);
-        button = (Button) findViewById(R.id.button);
-        button.setOnClickListener(new MyOnClickListener(this));
+        txtAzimuth = (TextView) findViewById(R.id.txtAzimuth);
+        txtPitch = (TextView) findViewById(R.id.txtPitch);
+        txtRoll = (TextView) findViewById(R.id.txtRoll);
+
+        sensorManager = (SensorManager)getSystemService(Context.SENSOR_SERVICE);
+        magSensor = sensorManager.getDefaultSensor (Sensor.TYPE_MAGNETIC_FIELD);
+        accSensor = sensorManager.getDefaultSensor (Sensor.TYPE_ACCELEROMETER);
+
+        listener = new SensorEventListener() {
+            @Override
+            public void onSensorChanged(SensorEvent sensorEvent) {
+                switch (sensorEvent.sensor.getType()) {
+                    case Sensor.TYPE_ACCELEROMETER:
+                        accelerometerValues = sensorEvent.values.clone();
+                        break;
+                    case Sensor.TYPE_MAGNETIC_FIELD:
+                        magneticValues = sensorEvent.values.clone();
+                        break;
+                }
+                if (magneticValues != null && accelerometerValues != null) {
+                    // 1) 회전(Rotation) 행렬과 경사(Inclination) 행렬 얻기
+                    float[] R = new float[16]; //얻고자 하는 회전 행렬 (장비의 방향을 계산할 때 이용)
+                    float[] I = new float[16]; //얻고자 하는 경사 행렬 (장비의 경사 각도를 계산할 때 이용)
+                    SensorManager.getRotationMatrix(R, I, accelerometerValues, magneticValues);
+
+                    // 2) 회전행렬로부터 방향 얻기
+                    float[] values = new float[3];
+                    SensorManager.getOrientation(R, values);
+
+                    if ((int) radian2Degree(values[0]) == 180) {
+                        Toast.makeText(MainActivity.this, "180", Toast.LENGTH_SHORT);
+                    } else if ((int) radian2Degree(values[0]) == -180) {
+                        Toast.makeText(MainActivity.this, "-180", Toast.LENGTH_SHORT);
+                    }
+
+                    txtAzimuth.setText("Azimuth: " + (int) radian2Degree(values[0]));
+                    txtPitch.setText("Pitch: " + (int) radian2Degree(values[1]));
+                    txtRoll.setText("Roll: " + (int) radian2Degree(values[2]));
+                }
+            }
+
+            @Override
+            public void onAccuracyChanged(Sensor sensor, int i) {}
+        };
+        sensorManager.registerListener(listener, magSensor, SensorManager.SENSOR_DELAY_UI);
+        sensorManager.registerListener(listener, accSensor, SensorManager.SENSOR_DELAY_UI);
+    }
+
+    private  float radian2Degree(float radian){
+        return radian * 180 / (float)Math.PI;
     }
 
     @Override
-    protected void onStart() {
-        super.onStart();
-        Log.e(TAG, "201621196박시온 onStart() called!");
+    protected void onResume(){
+        super.onResume();
+        sensorManager.registerListener(listener, magSensor, SensorManager.SENSOR_DELAY_UI);
+        sensorManager.registerListener(listener, accSensor, SensorManager.SENSOR_DELAY_UI);
     }
 
-    @Override
-    protected void onRestart() {
-        super.onRestart();
-        Log.e(TAG, "201621196박시온 onRestart() called!");
-    }
-
-    @Override
-    protected void onStop() {
-        super.onStop();
-        Log.e(TAG, "201621196박시온 onStop() called!");
-    }
 
     @Override
     protected void onPause() {
         super.onPause();
-        Log.e(TAG, "201621196박시온 onPause() called!");
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        Log.e(TAG, "201621196박시온 onDestroy() called!");
+        sensorManager.unregisterListener(listener);
     }
 }
